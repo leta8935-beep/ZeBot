@@ -9,8 +9,9 @@ load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-COGS = ["cogs.economy", "cogs.admin"]
-
+# ... (верхняя часть main.py)
+COGS = ["cogs.economy", "cogs.admin", "cogs.settings", "cogs.registration"]
+# ... (нижняя часть main.py)
 
 class Zebot(commands.Bot):
     def __init__(self):
