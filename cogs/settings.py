@@ -19,13 +19,14 @@ class Settings(commands.Cog):
         admin_role: discord.Role = None,
         pr_role: discord.Role = None
     ):
-        await self.bot.db.set_guild_setting(i.guild.id, "review_channel_id", str(review_channel.id))
+        # Передаем ID как числа (int), а не как строки
+        await self.bot.db.set_guild_setting(i.guild.id, "review_channel_id", review_channel.id)
         await self.bot.db.set_guild_setting(i.guild.id, "start_roles", citizen_roles.replace(" ", ""))
         
-        if curator_role: await self.bot.db.set_guild_setting(i.guild.id, "curator_role", str(curator_role.id))
-        if mod_role: await self.bot.db.set_guild_setting(i.guild.id, "mod_role", str(mod_role.id))
-        if admin_role: await self.bot.db.set_guild_setting(i.guild.id, "admin_role", str(admin_role.id))
-        if pr_role: await self.bot.db.set_guild_setting(i.guild.id, "pr_role", str(pr_role.id))
+        if curator_role: await self.bot.db.set_guild_setting(i.guild.id, "curator_role", curator_role.id)
+        if mod_role: await self.bot.db.set_guild_setting(i.guild.id, "mod_role", mod_role.id)
+        if admin_role: await self.bot.db.set_guild_setting(i.guild.id, "admin_role", admin_role.id)
+        if pr_role: await self.bot.db.set_guild_setting(i.guild.id, "pr_role", pr_role.id)
         
         msg = f"✅ **Настройки сохранены!**\n📌 Канал проверки: {review_channel.mention}\n👤 Роли граждан (ID): `{citizen_roles}`"
         if curator_role: msg += f"\n👑 Куратор: {curator_role.mention}"
@@ -59,7 +60,6 @@ class Settings(commands.Cog):
         elif image_url:
             embed.set_image(url=image_url)
 
-        # Импортируем нужные View из registration.py
         from cogs.registration import RegistrationView, StaffRegistrationView
 
         if message_type.value == "registration":
