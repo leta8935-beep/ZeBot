@@ -225,7 +225,7 @@ class StaffReviewView(discord.ui.View):
 
 
 # ═══════════════════════════════════════════════════
-# 3. КОМАНДЫ (/passport, /edit_passport)
+# 3. КОМАНДЫ (/passport, /edit_passport, /register)
 # ═══════════════════════════════════════════════════
 class Registration(commands.Cog):
     def __init__(self, bot):
@@ -257,6 +257,45 @@ class Registration(commands.Cog):
 
         view = EditSelectView(member)
         await i.response.send_message(f"Что вы хотите изменить у {member.mention}?", view=view, ephemeral=True)
+
+    @app_commands.command(name="register", description="[ADMIN] Зарегистрировать игрока вручную")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def register_admin(
+        self, i: discord.Interaction, 
+        member: discord.Member,
+        surname: str,
+        name: str,
+        patronymic: str,
+        dob: str,
+        pob: str,
+        bio: str,
+        photo_url: str
+    ):
+        await self.bot.db.save_passport(
+            member.id, surname, name, patronymic, dob, pob, bio, photo_url
+        )
+
+        settings = await self.bot.db.get_guild_settings(i.guild.id)
+        roles_added_text = "Нет"
+        
+        if settings and settings["start_roles"]:
+            role_ids = settings["start_roles"].split(",")
+            roles_to_add = [i.guild.get_role(int(r)) for r in role_ids if r]
+            roles_to_add = [r for r in roles_to_add if r]
+            
+            if roles_to_add:
+                try:
+                    await member.add_roles(*roles_to_add)
+                    roles_added_text = ", ".join([r.mention for r in roles_to_add])
+                except discord.Forbidden:
+                    roles_added_text = "Ошибка: у бота нет прав на выдачу ролей (проверь иерархию)"
+
+        embed = discord.Embed(title="✅ Игрок зарегистрирован", color=discord.Color.green())
+        embed.add_field(name="Игрок", value=member.mention, inline=False)
+        embed.add_field(name="ФИО", value=f"{surname} {name} {patronymic}", inline=False)
+        embed.add_field(name="Выданы роли", value=roles_added_text, inline=False)
+        
+        await i.response.send_message(embed=embed, ephemeral=True)
 
 class EditSelectView(discord.ui.View):
     def __init__(self, member: discord.Member):
