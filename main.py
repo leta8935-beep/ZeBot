@@ -9,9 +9,14 @@ load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# ... (верхняя часть main.py)
-COGS = ["cogs.economy", "cogs.admin", "cogs.settings", "cogs.registration"]
-# ... (нижняя часть main.py)
+# Список всех модулей, которые бот должен загрузить
+COGS = [
+    "cogs.economy", 
+    "cogs.admin", 
+    "cogs.settings",
+    "cogs.registration"
+]
+
 
 class Zebot(commands.Bot):
     def __init__(self):
@@ -20,13 +25,22 @@ class Zebot(commands.Bot):
 
     async def setup_hook(self):
         await self.db.connect()
+        print("База данных подключена.")
+        
         for cog in COGS:
-            await self.load_extension(cog)
+            try:
+                await self.load_extension(cog)
+                print(f"Модуль {cog} загружен.")
+            except Exception as e:
+                print(f"Ошибка при загрузке {cog}: {e}")
+                
         await self.tree.sync()
         print("Бот запущен, команды синхронизированы!")
 
 
 if __name__ == "__main__":
     if not TOKEN or not DATABASE_URL:
-        raise RuntimeError("Заполни DISCORD_TOKEN и DATABASE_URL в .env")
-    Zebot().run(TOKEN)
+        raise RuntimeError("Заполни DISCORD_TOKEN и DATABASE_URL в переменных окружения")
+    
+    bot = Zebot()
+    bot.run(TOKEN)
