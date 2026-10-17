@@ -1,10 +1,11 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-import asyncio
 
 
-# ─── Модалки (2 шага) ───
+# ═══════════════════════════════════════════════════
+# 1. РЕГИСТРАЦИЯ ГРАЖДАН (2 шага)
+# ═══════════════════════════════════════════════════
 class RegModalStep1(discord.ui.Modal, title="Регистрация (Шаг 1 из 2)"):
     surname = discord.ui.TextInput(label="Фамилия", placeholder="Иванов", max_length=50)
     name = discord.ui.TextInput(label="Имя", placeholder="Иван", max_length=50)
@@ -13,7 +14,6 @@ class RegModalStep1(discord.ui.Modal, title="Регистрация (Шаг 1 и
     pob = discord.ui.TextInput(label="Место рождения", placeholder="г. Москва", max_length=100)
 
     async def on_submit(self, interaction: discord.Interaction):
-        # Сохраняем данные временно в памяти (в Python словаре)
         interaction.client.temp_reg_data[interaction.user.id] = {
             "surname": self.surname.value,
             "name": self.name.value,
@@ -21,7 +21,6 @@ class RegModalStep1(discord.ui.Modal, title="Регистрация (Шаг 1 и
             "dob": self.dob.value,
             "pob": self.pob.value,
         }
-        
         await interaction.response.send_message(
             "Шаг 1 из 2 завершен. Теперь нажмите кнопку ниже, чтобы заполнить биографию и фото.",
             ephemeral=True,
@@ -33,31 +32,24 @@ class RegModalStep2(discord.ui.Modal, title="Регистрация (Шаг 2 и
     photo_url = discord.ui.TextInput(label="Ссылка на фото персонажа", placeholder="https://...", max_length=200)
 
     async def on_submit(self, interaction: discord.Interaction):
-        # Достаем данные из шага 1
         data = interaction.client.temp_reg_data.get(interaction.user.id)
         if not data:
             return await interaction.response.send_message("Ошибка: данные шага 1 потеряны. Начните заново.", ephemeral=True)
 
-        # Сохраняем в БД
         await interaction.client.db.save_passport(
             interaction.user.id,
             data["surname"], data["name"], data["patronymic"],
             data["dob"], data["pob"], self.bio.value, self.photo_url.value
         )
-        # Очищаем память
         del interaction.client.temp_reg_data[interaction.user.id]
 
-        # Отправляем анкету в канал проверки
         settings = await interaction.client.db.get_guild_settings(interaction.guild_id)
         if not settings or not settings["review_channel_id"]:
-            return await interaction.response.send_message("❌ Канал для проверки не настроен. Сообщите администрации.", ephemeral=True)
+            return await interaction.response.send_message("❌ Канал для проверки не настроен.", ephemeral=True)
 
         review_channel = interaction.guild.get_channel(int(settings["review_channel_id"]))
-        if not review_channel:
-            return await interaction.response.send_message("❌ Канал проверки не найден.", ephemeral=True)
-
-        # Формируем эмбед анкеты
-        embed = discord.Embed(title="Новая анкета", color=discord.Color.yellow())
+        
+        embed = discord.Embed(title="Новая анкета (Гражданин)", color=discord.Color.yellow())
         embed.add_field(name="Участник", value=f"{interaction.user.mention} (`{interaction.user.id}`)")
         embed.add_field(name="ФИО", value=f"{data['surname']} {data['name']} {data['patronymic']}")
         embed.add_field(name="Дата рождения", value=data["dob"])
@@ -67,40 +59,31 @@ class RegModalStep2(discord.ui.Modal, title="Регистрация (Шаг 2 и
         embed.set_image(url=self.photo_url.value)
 
         view = ReviewView(target_user=interaction.user)
-        msg = await review_channel.send(content=f"🔔 Проверка для {interaction.user.mention}", embed=embed, view=view)
+        await review_channel.send(content=f"🔔 Проверка для {interaction.user.mention}", embed=embed, view=view)
 
-        # Отправляем копию в ЛС
         try:
             await interaction.user.send("📝 **Копия вашей анкеты:**", embed=embed)
         except discord.Forbidden:
-            pass # Если у пользователя закрыты ЛС
+            pass
 
         await interaction.response.send_message("✅ Ваша анкета отправлена на проверку!", ephemeral=True)
 
-
-# ─── Кнопка для перехода ко второму шагу ───
 class NextStepView(discord.ui.View):
     @discord.ui.button(label="Заполнить биографию и фото", style=discord.ButtonStyle.primary)
     async def next_step(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(RegModalStep2())
 
-
-# ─── Кнопка "Заполнить анкету" ───
 class RegistrationView(discord.ui.View):
     def __init__(self):
-        super().__init__(timeout=None) # Кнопка будет работать всегда
+        super().__init__(timeout=None)
 
     @discord.ui.button(label="Заполнить анкету", style=discord.ButtonStyle.green, custom_id="start_registration")
     async def start_reg(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Проверяем, не зарегистрирован ли уже
         passport = await interaction.client.db.get_passport(interaction.user.id)
         if passport:
             return await interaction.response.send_message("❌ Вы уже зарегистрированы!", ephemeral=True)
-        
         await interaction.response.send_modal(RegModalStep1())
 
-
-# ─── Кнопки "Принять" и "Отклонить" для проверяющего ───
 class ReviewView(discord.ui.View):
     def __init__(self, target_user: discord.Member):
         super().__init__(timeout=None)
@@ -108,16 +91,11 @@ class ReviewView(discord.ui.View):
 
     @discord.ui.button(label="Принять", style=discord.ButtonStyle.success)
     async def approve(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Убираем кнопки
-        for child in self.children:
-            child.disabled = True
-
-        # Меняем эмбед
+        for child in self.children: child.disabled = True
         embed = interaction.message.embeds[0]
         embed.color = discord.Color.green()
         embed.set_footer(text=f"Одобрено | Проверяющий: {interaction.user.mention} ({interaction.user.name})")
 
-        # Выдаем роли
         settings = await interaction.client.db.get_guild_settings(interaction.guild_id)
         if settings and settings["start_roles"]:
             role_ids = settings["start_roles"].split(",")
@@ -125,30 +103,130 @@ class ReviewView(discord.ui.View):
             roles_to_add = [r for r in roles_to_add if r]
             try:
                 await self.target_user.add_roles(*roles_to_add)
-            except:
-                pass
+            except: pass
 
-        # ЛС пользователю
         try:
             await self.target_user.send("✅ Ваша анкета была **одобрена**! Добро пожаловать.")
-        except:
-            pass
+        except: pass
 
         await interaction.response.edit_message(embed=embed, view=self)
 
     @discord.ui.button(label="Отклонить", style=discord.ButtonStyle.danger)
     async def reject(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # ЛС пользователю
         try:
             await self.target_user.send("❌ Ваша анкета была **отклонена**.")
-        except:
-            pass
-
-        # Удаляем сообщение из канала проверки
+        except: pass
         await interaction.message.delete()
 
 
-# ─── Команды ───
+# ═══════════════════════════════════════════════════
+# 2. НАБОР В СТАФФ (1 шаг)
+# ═══════════════════════════════════════════════════
+class StaffModal(discord.ui.Modal, title="Анкета в Администрацию"):
+    name = discord.ui.TextInput(label="Ваше имя/никнейм", placeholder="Иван / Vanya", max_length=50)
+    age = discord.ui.TextInput(label="Ваш возраст", placeholder="18", max_length=2)
+    position = discord.ui.TextInput(
+        label="Желаемая должность", 
+        placeholder="Куратор / Модератор / Администратор / Пиар-менеджер",
+        max_length=30
+    )
+    experience = discord.ui.TextInput(label="Опыт в RP/администрировании", style=discord.TextStyle.paragraph, max_length=1000)
+    motivation = discord.ui.TextInput(label="Почему мы должны выбрать именно вас?", style=discord.TextStyle.paragraph, max_length=1000)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        pos_text = self.position.value.lower()
+        valid_positions = {
+            "куратор": "curator_role", 
+            "модератор": "mod_role", 
+            "администратор": "admin_role", 
+            "пиар-менеджер": "pr_role", 
+            "пиар": "pr_role"
+        }
+        
+        matched_column = None
+        for k, v in valid_positions.items():
+            if k in pos_text:
+                matched_column = v
+                break
+                
+        if not matched_column:
+            return await interaction.response.send_message(
+                "❌ Вы указали неверную должность. Выберите одну из: Куратор, Модератор, Администратор, Пиар-менеджер.", 
+                ephemeral=True
+            )
+
+        settings = await interaction.client.db.get_guild_settings(interaction.guild_id)
+        if not settings or not settings["review_channel_id"]:
+            return await interaction.response.send_message("❌ Канал проверки не настроен.", ephemeral=True)
+
+        review_channel = interaction.guild.get_channel(int(settings["review_channel_id"]))
+        
+        embed = discord.Embed(title="Заявка в Стафф", color=discord.Color.purple())
+        embed.add_field(name="Кандидат", value=f"{interaction.user.mention} (`{interaction.user.id}`)")
+        embed.add_field(name="Имя", value=self.name.value, inline=True)
+        embed.add_field(name="Возраст", value=self.age.value, inline=True)
+        embed.add_field(name="Должность", value=self.position.value, inline=True)
+        embed.add_field(name="Опыт", value=self.experience.value, inline=False)
+        embed.add_field(name="Мотивация", value=self.motivation.value, inline=False)
+        embed.set_thumbnail(url=interaction.user.display_avatar.url)
+
+        view = StaffReviewView(target_user=interaction.user, role_column=matched_column, pos_name=self.position.value)
+        await review_channel.send(content=f"🔔 Новая заявка в стафф от {interaction.user.mention}", embed=embed, view=view)
+
+        try:
+            await interaction.user.send("📝 Ваша заявка в администрацию отправлена на рассмотрение!", embed=embed)
+        except discord.Forbidden:
+            pass
+
+        await interaction.response.send_message("✅ Ваша заявка отправлена на проверку!", ephemeral=True)
+
+class StaffRegistrationView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Подать заявку в стафф", style=discord.ButtonStyle.blurple, custom_id="staff_reg_btn")
+    async def start_staff_reg(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(StaffModal())
+
+class StaffReviewView(discord.ui.View):
+    def __init__(self, target_user: discord.Member, role_column: str, pos_name: str):
+        super().__init__(timeout=None)
+        self.target_user = target_user
+        self.role_column = role_column 
+        self.pos_name = pos_name
+
+    @discord.ui.button(label="Принять", style=discord.ButtonStyle.success)
+    async def approve(self, interaction: discord.Interaction, button: discord.ui.Button):
+        for child in self.children: child.disabled = True
+        embed = interaction.message.embeds[0]
+        embed.color = discord.Color.green()
+        embed.set_footer(text=f"Одобрено | Проверяющий: {interaction.user.mention} ({interaction.user.name})")
+
+        settings = await interaction.client.db.get_guild_settings(interaction.guild_id)
+        if settings and settings[self.role_column]:
+            role = interaction.guild.get_role(int(settings[self.role_column]))
+            if role:
+                try:
+                    await self.target_user.add_roles(role)
+                except: pass
+
+        try:
+            await self.target_user.send(f"✅ Ваша заявка на должность **{self.pos_name}** была **одобрена**!")
+        except: pass
+
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="Отклонить", style=discord.ButtonStyle.danger)
+    async def reject(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            await self.target_user.send(f"❌ Ваша заявка на должность **{self.pos_name}** была **отклонена**.")
+        except: pass
+        await interaction.message.delete()
+
+
+# ═══════════════════════════════════════════════════
+# 3. КОМАНДЫ (/passport, /edit_passport)
+# ═══════════════════════════════════════════════════
 class Registration(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -180,8 +258,6 @@ class Registration(commands.Cog):
         view = EditSelectView(member)
         await i.response.send_message(f"Что вы хотите изменить у {member.mention}?", view=view, ephemeral=True)
 
-
-# ─── Меню выбора поля для редактирования ───
 class EditSelectView(discord.ui.View):
     def __init__(self, member: discord.Member):
         super().__init__(timeout=60)
@@ -203,8 +279,6 @@ class EditSelectView(discord.ui.View):
         field = select.values[0]
         await interaction.response.send_modal(EditModal(self.member, field))
 
-
-# ─── Модалка для ввода нового значения ───
 class EditModal(discord.ui.Modal, title="Изменение данных"):
     value = discord.ui.TextInput(label="Новое значение", style=discord.TextStyle.paragraph)
 
@@ -220,7 +294,6 @@ class EditModal(discord.ui.Modal, title="Изменение данных"):
 
 
 async def setup(bot):
-    # Создаем словарь в памяти для передачи данных между модалками
     if not hasattr(bot, 'temp_reg_data'):
         bot.temp_reg_data = {}
     await bot.add_cog(Registration(bot))
