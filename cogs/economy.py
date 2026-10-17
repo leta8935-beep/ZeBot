@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-TAX_RATE = 0.05
+TAX_RATE = 0
 
 def fmt(n: int) -> str:
     return f"{n:,}".replace(",", " ")
@@ -31,7 +31,7 @@ class Economy(commands.Cog):
         await i.response.send_message(
             embed=e, ephemeral=(target.id == i.user.id))
 
-    @app_commands.command(name="pay", description="Перевести деньги (налог 5%)")
+    @app_commands.command(name="pay", description="Перевести деньги")
     async def pay(self, i: discord.Interaction,
                   member: discord.Member, amount: int):
         if member.bot or member.id == i.user.id or amount <= 0:
