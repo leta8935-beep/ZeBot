@@ -46,7 +46,7 @@ class Database:
             );
             """)
             
-            # 3. Безопасно добавляем колонки для ролей стаффа (чтобы не сломать старую БД)
+            # 3. Безопасное добавление колонок для ролей стаффа
             await c.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS curator_role BIGINT;")
             await c.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS mod_role BIGINT;")
             await c.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS admin_role BIGINT;")
@@ -93,7 +93,7 @@ class Database:
         return True
 
     # ─── Настройки сервера ───
-    async def set_guild_setting(self, guild_id: int, column: str, value: str):
+    async def set_guild_setting(self, guild_id: int, column: str, value):
         allowed_columns = ["review_channel_id", "start_roles", "embed_image", "embed_desc", 
                            "curator_role", "mod_role", "admin_role", "pr_role"]
         if column not in allowed_columns:
@@ -102,6 +102,7 @@ class Database:
             exists = await c.fetchval("SELECT 1 FROM guild_settings WHERE guild_id=$1", guild_id)
             if not exists:
                 await c.execute("INSERT INTO guild_settings (guild_id) VALUES ($1)", guild_id)
+            
             await c.execute(f"UPDATE guild_settings SET {column}=$1 WHERE guild_id=$2", value, guild_id)
 
     async def get_guild_settings(self, guild_id: int):
