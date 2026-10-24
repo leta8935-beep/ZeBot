@@ -6,7 +6,14 @@ class Database:
         self.pool = None
 
     async def connect(self):
-        self.pool = await asyncpg.create_pool(self.dsn, min_size=1, max_size=5)
+        # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: statement_cache_size=0
+        self.pool = await asyncpg.create_pool(
+            self.dsn, 
+            min_size=1, 
+            max_size=5, 
+            statement_cache_size=0 
+        )
+        
         async with self.pool.acquire() as c:
             await c.execute("""
             CREATE TABLE IF NOT EXISTS users (user_id BIGINT PRIMARY KEY, wallet BIGINT NOT NULL DEFAULT 500);
@@ -21,11 +28,16 @@ class Database:
                 last_collect DOUBLE PRECISION DEFAULT 0
             );
             """)
+            
+            # Безопасное добавление новых колонок
             await c.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS curator_role BIGINT;")
             await c.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS mod_role BIGINT;")
             await c.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS admin_role BIGINT;")
             await c.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS pr_role BIGINT;")
             await c.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS manager_id BIGINT;")
+            
+            # Добавляем колонку activity в businesses, если её нет (на случай старой базы)
+            await c.execute("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS activity TEXT;")
 
     # ─── Экономика ───
     async def get_user(self, user_id: int):
@@ -45,7 +57,7 @@ class Database:
         async with self.pool.acquire() as c:
             await c.execute("INSERT INTO transactions (from_id, to_id, amount, kind) VALUES ($1,$2,$3,$4)", from_id, to_id, amount, kind)
 
-    # ─── Бизнес ───
+    # ─── Бизнес / Организации ───
     async def get_business(self, owner_id: int):
         async with self.pool.acquire() as c:
             return await c.fetchrow("SELECT * FROM businesses WHERE owner_id=$1", owner_id)
