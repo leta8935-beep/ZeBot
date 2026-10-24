@@ -17,7 +17,7 @@ class Database:
             );
             CREATE TABLE IF NOT EXISTS guild_settings (guild_id BIGINT PRIMARY KEY, review_channel_id BIGINT, start_roles TEXT);
             CREATE TABLE IF NOT EXISTS businesses (
-                biz_id SERIAL PRIMARY KEY, owner_id BIGINT UNIQUE, name TEXT NOT NULL, level INT DEFAULT 1,
+                biz_id SERIAL PRIMARY KEY, owner_id BIGINT UNIQUE, name TEXT NOT NULL, activity TEXT, level INT DEFAULT 1,
                 last_collect DOUBLE PRECISION DEFAULT 0
             );
             """)
@@ -50,9 +50,9 @@ class Database:
         async with self.pool.acquire() as c:
             return await c.fetchrow("SELECT * FROM businesses WHERE owner_id=$1", owner_id)
 
-    async def create_business(self, owner_id: int, name: str):
+    async def create_business(self, owner_id: int, name: str, activity: str = "Не указано"):
         async with self.pool.acquire() as c:
-            return await c.fetchrow("INSERT INTO businesses (owner_id, name) VALUES ($1, $2) RETURNING *", owner_id, name)
+            return await c.fetchrow("INSERT INTO businesses (owner_id, name, activity) VALUES ($1, $2, $3) RETURNING *", owner_id, name, activity)
 
     async def update_business(self, biz_id: int, level: int = None, last_collect: float = None):
         async with self.pool.acquire() as c:

@@ -11,7 +11,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 COGS = [
     "cogs.economy", 
-    "cogs.business",
+    "cogs.organization", # Переименовали
     "cogs.admin", 
     "cogs.settings",
     "cogs.registration"
@@ -21,7 +21,7 @@ class Zebot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=discord.Intents.default())
         self.db = Database(DATABASE_URL)
-        self.temp_reg_data = {} # Временное хранилище для анкет
+        self.temp_reg_data = {}
 
     async def setup_hook(self):
         await self.db.connect()
