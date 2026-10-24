@@ -28,7 +28,8 @@ class Settings(commands.Cog):
     @is_staff()
     @app_commands.choices(message_type=[
         app_commands.Choice(name="Регистрация", value="registration"),
-        app_commands.Choice(name="Набор в Стафф", value="staff_registration")
+        app_commands.Choice(name="Набор в Стафф", value="staff_registration"),
+        app_commands.Choice(name="Заявка на Организацию", value="org_registration") # Переименовали
     ])
     async def idtext(self, i: discord.Interaction, channel: discord.TextChannel, message_type: app_commands.Choice[str], text: str = "Нажмите кнопку ниже.", image_file: discord.Attachment = None, image_url: str = None):
         embed = discord.Embed(title="📋 Заявка", description=text, color=discord.Color.blue())
@@ -38,13 +39,17 @@ class Settings(commands.Cog):
             embed.set_image(url=f"attachment://{file.filename}")
         elif image_url: embed.set_image(url=image_url)
 
-        from cogs.registration import RegistrationView, StaffRegistrationView
+        from cogs.registration import RegistrationView, StaffRegistrationView, OrgRegistrationView
+        
         if message_type.value == "registration":
             embed.title = "📋 Регистрация Гражданина"
             view = RegistrationView()
-        else:
+        elif message_type.value == "staff_registration":
             embed.title = "👑 Набор в Администрацию"
             view = StaffRegistrationView()
+        else:
+            embed.title = "🏢 Открытие Организации"
+            view = OrgRegistrationView()
         
         await channel.send(embed=embed, view=view, file=file)
         await i.response.send_message("✅ Отправлено!", ephemeral=True)

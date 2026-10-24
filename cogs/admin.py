@@ -25,8 +25,26 @@ class Admin(commands.Cog):
         else: await self.bot.db.set_wallet(member.id, amount)
         
         u = await self.bot.db.get_user(member.id)
-        embed = discord.Embed(title="⚙️ Баланс изменен", color=0xEB459E, description=f"**Игрок:** {member.mention}\n**Новый баланс:** {fmt(u['wallet'])} 💰")
+        embed = discord.Embed(title="Баланс изменен", color=0xEB459E, description=f"**Игрок:** {member.mention}\n**Новый баланс:** {fmt(u['wallet'])} 💰")
         await i.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(name="create_org", description="[STAFF] Создать организацию для игрока")
+    @is_staff()
+    @app_commands.choices(org_type=[
+        app_commands.Choice(name="СМИ", value="СМИ"),
+        app_commands.Choice(name="Бизнес", value="Бизнес"),
+        app_commands.Choice(name="НКО / Фонд", value="НКО"),
+        app_commands.Choice(name="Корпорация", value="Корпорация")
+    ])
+    async def create_org(self, i: discord.Interaction, member: discord.Member, name: str, org_type: app_commands.Choice[str]):
+        existing = await self.bot.db.get_business(member.id)
+        if existing:
+            return await i.response.send_message("❌ У этого игрока уже есть организация.", ephemeral=True)
+        
+        await self.bot.db.create_business(member.id, name, org_type.value)
+        embed = discord.Embed(title="🏢 Организация создана", color=0x57F287)
+        embed.description = f"Владелец: {member.mention}\nНазвание: **{name}**\nТип: **{org_type.value}**"
+        await i.response.send_message(embed=embed)
 
     async def cog_app_command_error(self, i, error):
         if isinstance(error, app_commands.CheckFailure): await i.response.send_message(f"🚫 {error}", ephemeral=True)
