@@ -1,66 +1,65 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-TAX_RATE = 0
 
-def fmt(n: int) -> str:
-    return f"{n:,}".replace(",", " ")
-
+def fmt(n: int) -> str: return f"{n:,}".replace(",", " ")
 
 class Economy(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="balance", description="Показать баланс")
-    @app_commands.describe(member="Чужой баланс — только для администраторов")
-    async def balance(self, i: discord.Interaction,
-                      member: discord.Member | None = None):
-        is_admin = i.user.guild_permissions.administrator
+    @app_commands.command(name="balance", description="Показать ваш кошелёк")
+    async def balance(self, i: discord.Interaction, member: discord.Member = None):
+        is_admin = i.user.guild_permissions.administrator or i.user.id == i.guild.owner_id
         if member and member.id != i.user.id and not is_admin:
-            return await i.response.send_message(
-                "🚫 Только администратор может смотреть чужие балансы.",
-                ephemeral=True)
+            return await i.response.send_message("🚫 Только персонал может смотреть чужие кошельки.", ephemeral=True)
 
         target = member or i.user
         u = await self.bot.db.get_user(target.id)
-        e = discord.Embed(
-            title=f"💰 Баланс {target.display_name}",
-            description=f"## {fmt(u['wallet'])} монет",
-            color=discord.Color.green())
-        e.set_thumbnail(url=target.display_avatar.url)
-        await i.response.send_message(
-            embed=e, ephemeral=(target.id == i.user.id))
+        
+        # Создаем современный, минималистичный эмбед
+        embed = discord.Embed(
+            title="💳 Финансовый отчёт",
+            color=0x2b2d31, # Темный цвет Discord (стильно и строго)
+            description=(
+                f"> **Владелец счёта:** {target.mention}\n"
+                f"> **Статус:** Верифицирован ✅\n\n"
+                f"╭─────────────── 💰 Баланс ───────────────╮\n"
+                f"│  **{fmt(u['wallet'])}** RUB\n"
+                f"╰─────────────────────────────────────────╯\n\n"
+                f"-# Безопасность транзакций гарантирована Zebot Bank"
+            )
+        )
+        embed.set_author(name=target.display_name, icon_url=target.display_avatar.url)
+        embed.set_footer(text="Zebot Economy System", icon_url=i.guild.me.display_avatar.url)
+        
+        await i.response.send_message(embed=embed, ephemeral=(target.id == i.user.id))
 
-    @app_commands.command(name="pay", description="Перевести деньги")
-    async def pay(self, i: discord.Interaction,
-                  member: discord.Member, amount: int):
+    @app_commands.command(name="pay", description="Перевести средства (налог 5%)")
+    async def pay(self, i: discord.Interaction, member: discord.Member, amount: int):
         if member.bot or member.id == i.user.id or amount <= 0:
-            return await i.response.send_message(
-                "❌ Некорректный получатель или сумма.", ephemeral=True)
+            return await i.response.send_message("❌ Некорректная операция.", ephemeral=True)
 
         sender = await self.bot.db.get_user(i.user.id)
         if sender["wallet"] < amount:
-            return await i.response.send_message(
-                f"❌ Недостаточно средств. У тебя: **{fmt(sender['wallet'])}**",
-                ephemeral=True)
+            return await i.response.send_message("❌ Недостаточно средств.", ephemeral=True)
 
         await self.bot.db.get_user(member.id)
-        tax = int(amount * TAX_RATE)
+        tax = int(amount * 0.05)
         net = amount - tax
 
         await self.bot.db.update_wallet(i.user.id, -amount)
         await self.bot.db.update_wallet(member.id, net)
         await self.bot.db.log(i.user.id, member.id, amount, "pay")
 
-        e = discord.Embed(title="💸 Перевод выполнен",
-                          color=discord.Color.blurple())
-        e.add_field(name="От", value=i.user.mention, inline=True)
-        e.add_field(name="Кому", value=member.mention, inline=True)
-        e.add_field(name="Сумма", value=f"**{fmt(amount)}**", inline=True)
-        e.add_field(name="Налог", value=f"**{fmt(tax)}**", inline=True)
-        e.add_field(name="Получено", value=f"**{fmt(net)}**", inline=True)
-        await i.response.send_message(embed=e)
-
+        embed = discord.Embed(title="✅ Перевод выполнен", color=0x57F287)
+        embed.description = (
+            f"> **Отправитель:** {i.user.mention}\n"
+            f"> **Получатель:** {member.mention}\n\n"
+            f"Сумма перевода: **{fmt(net)}** 💰\n"
+            f"Комиссия (5%): **{fmt(tax)}** 💸"
+        )
+        await i.response.send_message(embed=embed)
 
 async def setup(bot):
     await bot.add_cog(Economy(bot))
