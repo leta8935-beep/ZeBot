@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body {
+            /* Светлый градиентный фон */
+            background: linear-gradient(135deg, #e0eafc, #cfdef3, #e0c3fc);
+            width: 800px; height: 450px; display: flex; align-items: center; justify-content: center;
+        }
+        .glass-card {
+            width: 720px; height: 380px;
+            /* Эффект матового стекла */
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            border-radius: 28px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+            display: flex; padding: 30px; position: relative;
+        }
+        /* Левая часть с фото */
+        .photo-sec {
+            width: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .photo-frame {
+            width: 180px; height: 220px; border-radius: 20px;
+            background: #f1f5f9; box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            overflow: hidden; border: 3px solid #ffffff;
+        }
+        .photo { width: 100%; height: 100%; object-fit: cover; }
+        .badge {
+            margin-top: 15px; padding: 8px 20px; background: #ffffff;
+            color: #3b82f6; border-radius: 20px; font-size: 12px; font-weight: 800;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2); text-transform: uppercase; letter-spacing: 1px;
+        }
+        /* Правая часть с текстом */
+        .info-sec {
+            flex: 1; padding: 20px 10px 20px 40px; display: flex; flex-direction: column; justify-content: center;
+        }
+        .title { font-size: 24px; font-weight: 800; color: #1e293b; margin-bottom: 25px; letter-spacing: -0.5px; }
+        .title span { color: #6366f1; }
+        .data-row { display: flex; margin-bottom: 16px; align-items: center; }
+        .label { width: 130px; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+        .value { font-size: 18px; font-weight: 600; color: #0f172a; }
+        /* Декоративный элемент */
+        .chip {
+            position: absolute; top: 30px; right: 30px; width: 45px; height: 35px;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b); border-radius: 8px;
+            opacity: 0.8; box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="glass-card">
+        <div class="chip"></div>
+        <div class="photo-sec">
+            <div class="photo-frame">
+                <img class="photo" id="photo" src="">
+            </div>
+            <div class="badge">Гражданин</div>
+        </div>
+        <div class="info-sec">
+            <div class="title">Удостоверение <span>Личности</span></div>
+            
+            <div class="data-row"><div class="label">Фамилия</div><div class="value" id="surname"></div></div>
+            <div class="data-row"><div class="label">Имя</div><div class="value" id="name"></div></div>
+            <div class="data-row"><div class="label">Отчество</div><div class="value" id="patronymic"></div></div>
+            <div class="data-row"><div class="label">Дата рожд.</div><div class="value" id="dob"></div></div>
+            <div class="data-row"><div class="label">Место рожд.</div><div class="value" id="pob"></div></div>
+        </div>
+    </div>
+    <script>
+        window.renderData = (data) => {
+            // Если фото нет, ставим заглушку
+            document.getElementById('photo').src = data.photo_url || 'https://i.imgur.com/vHq5K9u.png';
+            document.getElementById('surname').innerText = data.surname;
+            document.getElementById('name').innerText = data.name;
+            document.getElementById('patronymic').innerText = data.patronymic;
+            document.getElementById('dob').innerText = data.dob;
+            document.getElementById('pob').innerText = data.pob;
+        };
+    </script>
+</body>
+</html>
